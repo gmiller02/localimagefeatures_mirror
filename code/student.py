@@ -68,16 +68,16 @@ def get_interest_points(image, feature_width):
     # STEP 2: Apply Gaussian filter with appropriate sigma
     gx = filters.gaussian(gx, sigma = 1)
     gy = filters.gaussian(gy, sigma = 1)
-    gxy = filters.gaussian(xy, sigma = 1)
+    gxy = filters.gaussian(xy, sigma=1)
 
     g2 = np.square(gxy)
-    a = 0.5
+    a = 0.05
     # STEP 3: Calculate Harris cornerness score for all pixels.
-    cornerness = ((g_x * g_y) - g2) - (a * np.square(np.add(gx, gy)))
+    cornerness = (np.multiply(g_x, g_y) - g2) - (a * np.square(np.add(gx, gy)))
     # STEP 4: Peak local max to eliminate clusters. (Try different parameters.)
-    max = feature.peak_local_max(cornerness, min_distance= 1, threshold_abs=0.05)
-    xs = max[:, 1]
-    ys = max[:, 0]
+    max_m = feature.peak_local_max(cornerness, min_distance= 1, threshold_rel=0.03)
+    xs = max_m[:, 1]
+    ys = max_m[:, 0]
     
     # BONUS: There are some ways to improve:
     # 1. Making interest point detection multi-scaled.
@@ -172,38 +172,40 @@ def get_features(image, x, y, feature_width):
     gx = filters.sobel_v(image, mask=None)
     gy = filters.sobel_h(image, mask=None)
 
-    mag = np.sqrt(np.add(np.square(gx, gy), np.square(gy)))
+    mag = np.sqrt(np.add(np.square(gx), np.square(gy)))
 
     grad_o = np.add(np.arctan2(gx, gy), np.pi)
 
     for i in range(0, len(x)):
         des = np.array([])
-        for outerX in range(int(x[i]) - 8, int(x[i]) + 8, 4):
+        if (x[i] + 8 < image.shape[1]) and (y[i] + 8 < image.shape[0]):
             for outerY in range(int(y[i]) - 8, int(y[i]) + 8, 4):
-                histogram = np.zeros((8, 1))
-                for innerX in range(outerX + 4, outerX):
-                    for innerY in range(outerY + 4, outerY):
-                        orientation = grad_o[innerY][innerX]
-                        mag_help = mag[innerY][innerX]
-                        if (orientation >= 0) and (orientation <= 1/4 * np.pi):
-                            histogram[0] += mag_help
-                        elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):
-                            histogram[1] += mag_help
-                        elif (orientation > 1/2 * np.pi) and (orientation < 3/4 * np.pi):
-                            histogram[2] += mag_help
-                        elif (orientation > 3/4 * np.pi) and (orientation < np.pi):
-                            histogram[3] += mag_help
-                        elif(orientation > np.pi) and (orientation < 5/4 * np.pi):
-                            histogram[4] += mag_help
-                        elif(orientation > 5/4 * np.pi) and (orientation < 3/2 * np.pi):
-                            histogram[5] += mag_help
-                        elif(orientation > 3/2 * np.pi/2) and (orientation < 7/4 * (np.pi)):
-                            histogram[6] += mag_help
-                        elif (orientation > 7/4 * np.pi) and (orientation < np.pi):
-                            histogram[7] += mag_help 
+                for outerX in range(int(x[i]) - 8, int(x[i]) + 8, 4):
+                    histogram = np.zeros((8, 1))
+                    for innerX in range(outerX + 4, outerX):
+                        for innerY in range(outerY + 4, outerY):
+                            orientation = grad_o[innerX][innerY]
+                            mag_help = mag[innerX][innerY]
+                            if (orientation >= 0) and (orientation <= 1/4 * np.pi):
+                                histogram[0] += mag_help
+                            elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):
+                                histogram[1] += mag_help
+                            elif (orientation > 1/2 * np.pi) and (orientation < 3/4 * np.pi):
+                                histogram[2] += mag_help
+                            elif (orientation > 3/4 * np.pi) and (orientation < np.pi):
+                                histogram[3] += mag_help
+                            elif(orientation > np.pi) and (orientation < 5/4 * np.pi):
+                                histogram[4] += mag_help
+                            elif(orientation > 5/4 * np.pi) and (orientation < 3/2 * np.pi):
+                                histogram[5] += mag_help
+                            elif(orientation > 3/2 * np.pi/2) and (orientation < 7/4 * (np.pi)):
+                                histogram[6] += mag_help
+                            elif (orientation > 7/4 * np.pi) and (orientation < np.pi):
+                                histogram[7] += mag_help 
 
-                des = np.append(des, histogram)            
-        features[i] = des    
+                    des = np.append(des, histogram) 
+
+            features[i, :] = np.expand_dims(des / np.linalg.norm(des), axis = 0)
 
     return features
 

@@ -182,10 +182,10 @@ def get_features(image, x, y, feature_width):
             for outerY in range(int(y[i]) - 8, int(y[i]) + 8, 4):
                 for outerX in range(int(x[i]) - 8, int(x[i]) + 8, 4):
                     histogram = np.zeros((8, 1))
-                    for innerX in range(outerX + 4, outerX):
-                        for innerY in range(outerY + 4, outerY):
-                            orientation = grad_o[innerX][innerY]
-                            mag_help = mag[innerX][innerY]
+                    for innerX in range(outerX, outerX + 4):
+                        for innerY in range(outerY, outerY + 4):
+                            orientation = grad_o[innerY][innerX]
+                            mag_help = mag[innerY][innerX]
                             if (orientation >= 0) and (orientation <= 1/4 * np.pi):
                                 histogram[0] += mag_help
                             elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):

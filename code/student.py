@@ -183,8 +183,8 @@ def get_features(image, x, y, feature_width):
             for outerY in range(int(y[i]) - 8, int(y[i]) + 8, 4):
                 for outerX in range(int(x[i]) - 8, int(x[i]) + 8, 4):
                     histogram = np.zeros((8, 1))
-                    for innerX in range(outerX, outerX + 4):
-                        for innerY in range(outerY, outerY + 4):
+                    for innerY in range(outerY, outerY + 4):
+                        for innerX in range(outerX, outerX + 4):
                             orientation = grad_o[innerY][innerX]
                             mag_help = mag[innerY][innerX]
                             if (orientation >= 0) and (orientation <= 1/4 * np.pi):
@@ -273,7 +273,7 @@ def match_features(im1_features, im2_features):
 
     near_n = dist_sort[:, 0]
     near_n_2 = dist_sort[:, 1]
-    confidences = np.ones(confidences.shape) - (near_n/near_n_2)
+    confidences = near_n_2/near_n
 
     for i in range(len(near_n)):
         matches[i][0] = i

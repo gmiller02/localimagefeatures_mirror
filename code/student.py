@@ -58,23 +58,24 @@ def get_interest_points(image, feature_width):
     ys = np.zeros(1)
 
     # STEP 1: Calculate the gradient (partial derivatives on two directions).
-    g1x = filters.sobel_v(image)
-    g1y = filters.sobel_h(image)
+    g_x = filters.sobel_v(image)
+    g_y = filters.sobel_h(image)
 
-    gx = np.square(g1x)
-    gy = np.square(g1y)
+    gx = np.square(g_x)
+    gy = np.square(g_y)
     xy = np.multiply(gx, gy)
-    # STEP 2: Apply Gaussian filter with appropriate sigma.
-    gIx = filters.gaussian(gx, sigma = 1)
-    gIy = filters.gaussian(gy, sigma = 1)
+
+    # STEP 2: Apply Gaussian filter with appropriate sigma
+    gx = filters.gaussian(gx, sigma = 1)
+    gy = filters.gaussian(gy, sigma = 1)
     gxy = filters.gaussian(xy, sigma = 1)
-    
-    g2 = np.square(filters.gaussian(gxy))
+
+    g2 = np.square(gxy)
     a = 0.5
     # STEP 3: Calculate Harris cornerness score for all pixels.
-    cornerness = (gIx * gIy) - g2 - (a * np.square(gx + gy))
+    cornerness = ((g_x * g_y) - g2) - (a * np.square(np.add(gx, gy)))
     # STEP 4: Peak local max to eliminate clusters. (Try different parameters.)
-    max = feature.peak_local_max(cornerness, min_distance= 1, threshold_abs=0.01)
+    max = feature.peak_local_max(cornerness, min_distance= 1, threshold_abs=0.05)
     xs = max[:, 1]
     ys = max[:, 0]
     
@@ -182,8 +183,8 @@ def get_features(image, x, y, feature_width):
                 histogram = np.zeros((8, 1))
                 for innerX in range(outerX + 4, outerX):
                     for innerY in range(outerY + 4, outerY):
-                        orientation = grad_o[innerX][innerY]
-                        mag_help = mag[innerX][innerY]
+                        orientation = grad_o[innerY][innerX]
+                        mag_help = mag[innerY][innerX]
                         if (orientation >= 0) and (orientation <= 1/4 * np.pi):
                             histogram[0] += mag_help
                         elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):

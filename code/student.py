@@ -58,21 +58,25 @@ def get_interest_points(image, feature_width):
     ys = np.zeros(1)
 
     # STEP 1: Calculate the gradient (partial derivatives on two directions).
-    g1x = filters.sobel_h(image)
-    g1y = filters.sobel_v(image)
+    g1x = filters.sobel_v(image)
+    g1y = filters.sobel_h(image)
 
     gx = np.square(g1x)
     gy = np.square(g1y)
+    xy = np.multiply(gx, gy)
     # STEP 2: Apply Gaussian filter with appropriate sigma.
     gIx = filters.gaussian(gx, sigma = 1)
     gIy = filters.gaussian(gy, sigma = 1)
-    g2 = np.square(filters.gaussian(gx * gy))
+    gxy = filters.gaussian(xy, sigma = 1)
+    
+    g2 = np.square(filters.gaussian(gxy))
     a = 0.5
     # STEP 3: Calculate Harris cornerness score for all pixels.
-    cornerness = (gIx * gIy) - g2 - a * np.square(gIx + gIy)
+    cornerness = (gIx * gIy) - g2 - (a * np.square(gx + gy))
     # STEP 4: Peak local max to eliminate clusters. (Try different parameters.)
-    max = feature.peak_local_max(cornerness, min_distance= 1)
-
+    max = feature.peak_local_max(cornerness, min_distance= 1, threshold_abs=0.01)
+    xs = max[:, 1]
+    ys = max[:, 0]
     
     # BONUS: There are some ways to improve:
     # 1. Making interest point detection multi-scaled.
@@ -162,46 +166,43 @@ def get_features(image, x, y, feature_width):
 
     # This is a placeholder - replace this with your features!
 
+    features = np.zeros((len(x), 128))
 
-    features = np.zeros((len(x),128))
+    gx = filters.sobel_v(image, mask=None)
+    gy = filters.sobel_h(image, mask=None)
 
-    gx = filters.sobel_h(image)
-    gy = filters.sobel_v(image)
-
-    mag = np.sqrt(np.power(gx,2) + np.power(gy, 2))
+    mag = np.sqrt(np.add(np.square(gx, gy), np.square(gy)))
 
     grad_o = np.add(np.arctan2(gx, gy), np.pi)
 
     for i in range(0, len(x)):
         des = np.array([])
         for outerX in range(int(x[i]) - 8, int(x[i]) + 8, 4):
-            for j in range(0, len(y)):
-               for outerY in range(int(y[j]) - 8, int(y[j]) + 8, 4):
-                    histogram = np.zeros((8, 1))
-                    for innerX in range(outerX - 4, outerX, 1):
-                       for innerY in range(outerY - 4, outerY, 1):
-                            orientation = grad_o[innerX][innerY]
-                            mag_help = mag[innerX][innerY]
-                            if (orientation >= 0) and (orientation <= 1/4 * np.pi):
-                               histogram[0] += mag_help
-                            elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):
-                                histogram[1] += mag_help
-                            elif (orientation > 1/2 * np.pi) and (orientation < 3/4 * np.pi):
-                                histogram[2] += mag_help
-                            elif (orientation > 3/4 * np.pi) and (orientation < np.pi):
-                                histogram[3] += mag_help
-                            elif(orientation > np.pi) and (orientation < 5/4 * np.pi):
-                                histogram[4] += mag_help
-                            elif(orientation > 5/4 * np.pi) and (orientation < 3/2 * np.pi):
-                                histogram[5] += mag_help
-                            elif(orientation > 3/2 * np.pi/2) and (orientation < 7/4 * (np.pi)):
-                                histogram[6] += mag_help
-                            elif (orientation > 7/4 * np.pi) and (orientation < np.pi):
-                                histogram[7] += mag_help 
+            for outerY in range(int(y[i]) - 8, int(y[i]) + 8, 4):
+                histogram = np.zeros((8, 1))
+                for innerX in range(outerX + 4, outerX):
+                    for innerY in range(outerY + 4, outerY):
+                        orientation = grad_o[innerX][innerY]
+                        mag_help = mag[innerX][innerY]
+                        if (orientation >= 0) and (orientation <= 1/4 * np.pi):
+                            histogram[0] += mag_help
+                        elif (orientation > 1/4 * np.pi) and (orientation < 1/2 * np.pi):
+                            histogram[1] += mag_help
+                        elif (orientation > 1/2 * np.pi) and (orientation < 3/4 * np.pi):
+                            histogram[2] += mag_help
+                        elif (orientation > 3/4 * np.pi) and (orientation < np.pi):
+                            histogram[3] += mag_help
+                        elif(orientation > np.pi) and (orientation < 5/4 * np.pi):
+                            histogram[4] += mag_help
+                        elif(orientation > 5/4 * np.pi) and (orientation < 3/2 * np.pi):
+                            histogram[5] += mag_help
+                        elif(orientation > 3/2 * np.pi/2) and (orientation < 7/4 * (np.pi)):
+                            histogram[6] += mag_help
+                        elif (orientation > 7/4 * np.pi) and (orientation < np.pi):
+                            histogram[7] += mag_help 
 
-                    np.append(des, histogram)
-        np.append(features, des)
-        
+                des = np.append(des, histogram)            
+        features[i] = des    
 
     return features
 
@@ -247,9 +248,8 @@ def match_features(im1_features, im2_features):
     
     # BONUS: Using PCA might help the speed (but maybe not the accuracy).
 
-    matches = np.zeros((im1_features.shape[0],2))
-    confidences = np.zeros(im1_features.shape[0])
-    threshold = 0.5
+    matches = np.zeros((len(im1_features),2))
+    confidences = np.zeros(len(im1_features))
 
     B = 2 * (np.dot(im1_features, np.matrix.transpose(im2_features)))
 
@@ -263,13 +263,15 @@ def match_features(im1_features, im2_features):
     e_dist = np.sqrt(np.subtract(A, B))
 
     dist_sort = np.sort(e_dist, axis=1)
+    d_sort_i = np.argsort(e_dist, axis = 1)
 
-    for i in range(0, len(im1_features[0])):
-        near_n = dist_sort[i][0]
-        near_n_2 = e_dist[i][1]
-        ratios = near_n/near_n_2
-        if ratios < threshold:
-            matches[i] = near_n[i]
-            confidences[i] = 1.0 - near_n[i]/near_n_2[i]
+    near_n = dist_sort[:, 0]
+    near_n_2 = dist_sort[:, 1]
+
+    confidences = 1 - (near_n/near_n_2)
+
+    for i in range(len(im1_features)):
+        matches[i][0] = i
+        matches[i][1] = d_sort_i[i][0]
 
     return matches, confidences

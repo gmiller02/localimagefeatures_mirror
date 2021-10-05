@@ -32,20 +32,19 @@ with:
     - numpy, matplotlib, scipy, argparse
 """
 
+import cv2  # opencv-based functions
+from skimage.color import rgb2gray
+from skimage import img_as_float, img_as_ubyte
+from skimage import io
+from scipy import ndimage
+import numpy as np
+import math
+import time
 __author__ = "Brian R. Pauw, David Mannicke; modified for Brown CSCI1430 by James Tompkin"
 __contact__ = "brian@stack.nl; james_tompkin@brown.edu"
 __license__ = "GPLv3+"
 __date__ = "2014/01/25; modifications 2017--2019"
 __status__ = "v2.1"
-
-import cv2 #opencv-based functions
-import time
-import math
-import numpy as np
-from scipy import ndimage
-from skimage import io
-from skimage import img_as_float, img_as_ubyte
-from skimage.color import rgb2gray
 
 
 class live_FFT2():
@@ -72,14 +71,16 @@ class live_FFT2():
 
         # Camera device
         # If you have more than one camera, you can access them by cv2.VideoCapture(1), etc.
-        self.vc = cv2.VideoCapture(1)
+        self.vc = cv2.VideoCapture(0)
         if not self.vc.isOpened():
-            print( "No camera found or error opening camera; using a static image instead." )
+            print(
+                "No camera found or error opening camera; using a static image instead.")
             self.use_camera = False
 
         if self.use_camera == False:
             # No camera!
-            self.im = rgb2gray(img_as_float(io.imread('YuanningHuCrop.png'))) # One of our intrepid TAs (Yuanning was one of our HTAs for Spring 2019)
+            # One of our intrepid TAs (Yuanning was one of our HTAs for Spring 2019)
+            self.im = rgb2gray(img_as_float(io.imread('YuanningHuCrop.png')))
         else:
             # We found a camera!
             # Requested camera size. This will be cropped square later on, e.g., 240 x 240
@@ -90,22 +91,23 @@ class live_FFT2():
         cv2.namedWindow(self.wn, 0)
 
         # Load the Jack image for comparison
-        self.imJack = rgb2gray(img_as_float(io.imread('JacksonGibbonsCrop.png'))) # Another one of our intrepid TAs (Jack was one of our TAs for Spring 2017)
+        # Another one of our intrepid TAs (Jack was one of our TAs for Spring 2017)
+        self.imJack = rgb2gray(img_as_float(
+            io.imread('JacksonGibbonsCrop.png')))
 
         # Main loop
         while True:
             a = time.perf_counter()
             self.camimage_ft()
-            print('framerate = {} fps \r'.format(1. / (time.perf_counter() - a)))
-    
-    
+            print('framerate = {} fps \r'.format(
+                1. / (time.perf_counter() - a)))
+
         if self.use_camera:
             # Stop camera
             self.vc.release()
 
-
     def camimage_ft(self):
-        
+
         if self.use_camera:
             # Read image
             rval, im = self.vc.read()
@@ -114,7 +116,7 @@ class live_FFT2():
             im = img_as_float(rgb2gray(im))
             # Note: some cameras across the class are returning different image sizes
             # on first read and later on. So, let's just recompute the crop constantly.
-            
+
             if im.shape[1] > im.shape[0]:
                 cropx = int((im.shape[1]-im.shape[0])/2)
                 cropy = 0
@@ -129,8 +131,7 @@ class live_FFT2():
         height = self.im.shape[0]
         cv2.resizeWindow(self.wn, width*2, height*2)
 
-
-        #                
+        #
         # Students: Concentrate here.
         # This code reads an image from your webcam. If you have no webcam, e.g.,
         # a department machine, then it will use a picture of an intrepid TA.
@@ -142,29 +143,28 @@ class live_FFT2():
         # Top right: reconstruction of image from Fourier domain
         #
         # Let's start by peforming the 2D fast Fourier decomposition operation
-        imFFT = np.fft.fft2( self.im )
-        
+        imFFT = np.fft.fft2(self.im)
+
         # Then creating our amplitude and phase images
-        amplitude = np.sqrt( np.power( imFFT.real, 2 ) + np.power( imFFT.imag, 2 ) )
-        phase = np.arctan2( imFFT.imag, imFFT.real )
-        
+        amplitude = np.sqrt(np.power(imFFT.real, 2) + np.power(imFFT.imag, 2))
+        phase = np.arctan2(imFFT.imag, imFFT.real)
+
         # We will reconstruct the image from this decomposition later on (far below at line 260); have a look now.
 
         ###########################################################
         # # Just the central dot
         #amplitude = np.zeros( self.im.shape )
         # # a = np.fft.fftshift(amplitude)
-        
+
         # # NOTE: [0,0] here is the 0-th frequency component around which all other frequencies oscillate
         #amplitude[0,0] = 40000
-        
-        # # amplitude = np.fft.fftshift(a)
 
+        # # amplitude = np.fft.fftshift(a)
 
         # # #########################################################
         # # Part 0: Scanning the basis and looking at the reconstructed image for each frequency independently
         # # To see the effect, uncomment this block, read throug the comments and code, and then execute the program.
-        
+
         # # Let's begin by zeroing out the amplitude and phase.
         # amplitude = np.zeros( self.im.shape )
         # phase = np.zeros( self.im.shape )
@@ -191,7 +191,7 @@ class live_FFT2():
 
         ########################################################
         # Part 1: Reconstructing from different numbers of basis frequencies
-        
+
         # What if we set some frequency amplitudes to zero, but vary
         # over time which ones we set?
 
@@ -211,42 +211,40 @@ class live_FFT2():
         # If radius is large and direction is increasing, then flip the direction!
         if self.amplitudeCutoffRadius > width/3 and self.amplitudeCutoffDirection > 0:
             self.amplitudeCutoffDirection *= -1
-        
-        self.amplitudeCutoffRadius += self.amplitudeCutoffDirection
 
+        self.amplitudeCutoffRadius += self.amplitudeCutoffDirection
 
         # ########################################################
         # # Part 2: Replacing amplitude / phase with that of another image
-        
-        # imJack = cv2.resize( self.imJack, self.im.shape )
-        # imJackFFT = np.fft.fft2( imJack )
-        # amplitudeJack = np.sqrt( np.power( imJackFFT.real, 2 ) + np.power( imJackFFT.imag, 2 ) )
-        # phaseJack = np.arctan2( imJackFFT.imag, imJackFFT.real )
-        
-        # # Comment in either or both of these
-        # #amplitude = amplitudeJack
-        # #phase = phaseJack
 
+        imJack = cv2.resize(self.imJack, self.im.shape)
+        imJackFFT = np.fft.fft2(imJack)
+        amplitudeJack = np.sqrt(
+            np.power(imJackFFT.real, 2) + np.power(imJackFFT.imag, 2))
+        phaseJack = np.arctan2(imJackFFT.imag, imJackFFT.real)
+
+        # # Comment in either or both of these
+        # amplitude = amplitudeJack
+        phase = phaseJack
 
         #########################################################
-        ## Part 3: Replacing amplitude / phase with that of a noisy image
-        
+        # Part 3: Replacing amplitude / phase with that of a noisy image
+
         # # Generate some noise
         # self.uniform_noise = np.random.uniform( 0, 1, self.im.shape )
         # imNoiseFFT = np.fft.fft2( self.uniform_noise )
         # amplitudeNoise = np.sqrt( np.power( imNoiseFFT.real, 2 ) + np.power( imNoiseFFT.imag, 2 ) )
         # phaseNoise = np.arctan2( imNoiseFFT.imag, imNoiseFFT.real )
-        
+
         # # Comment in either or both of these
         # #amplitude = amplitudeNoise
         # #phase = phaseNoise
 
-
         #########################################################
-        ## Part 4: Understanding amplitude and phase
+        # Part 4: Understanding amplitude and phase
         #
         # Play with the images. What can you discover?
-        
+
         # Zero out phase?
         # phase = np.zeros( self.im.shape ) # + 0.5 * phase
 
@@ -264,32 +262,35 @@ class live_FFT2():
         # Rotate whole image? Together? Individually?
         #phase = np.rot90( phase )
         #amplitude = np.rot90( amplitude )
-        
+
         # Are these manipulations meaningful?
         # What other manipulations might we perform?
 
-
         #########################################################
-        ## Reconstruct the original image
+        # Reconstruct the original image
         # I need to build a new real+imaginary number from the amplitude / phase
         # This is going from polar coordinates to Cartesian coordinates in the complex number space
-        recReal = np.cos( phase ) * amplitude
-        recImag = np.sin( phase ) * amplitude
+        recReal = np.cos(phase) * amplitude
+        recImag = np.sin(phase) * amplitude
         rec = recReal + 1j*recImag
         # Now inverse Fourier transform
-        newImage = np.fft.ifft2( rec ).real
-        
+        newImage = np.fft.ifft2(rec).real
+
         # Image output
-        amplitude[amplitude == 0] = np.finfo(float).eps # prevent any log(0) errors
-        outputTop = np.concatenate((self.im,newImage),axis = 1)
-        outputBottom = np.concatenate((np.log(np.fft.fftshift(amplitude)) / 10, np.fft.fftshift(phase)),axis = 1)
-        output = np.clip(np.concatenate((outputTop,outputBottom),axis = 0),0,1)
+        amplitude[amplitude == 0] = np.finfo(
+            float).eps  # prevent any log(0) errors
+        outputTop = np.concatenate((self.im, newImage), axis=1)
+        outputBottom = np.concatenate(
+            (np.log(np.fft.fftshift(amplitude)) / 10, np.fft.fftshift(phase)), axis=1)
+        output = np.clip(np.concatenate(
+            (outputTop, outputBottom), axis=0), 0, 1)
         # NOTE: One student's software crashed at this line without casting to uint8,
         # but this operation via img_as_ubyte is _slow_. Add this back in if you code crashes.
         #cv2.imshow(self.wn, output)
         #cv2.imshow(self.wn, img_as_ubyte(output))
-        cv2.imshow(self.wn, (output*255).astype(np.uint8)) # faster alternative
-        
+        # faster alternative
+        cv2.imshow(self.wn, (output*255).astype(np.uint8))
+
         cv2.waitKey(1)
 
         return

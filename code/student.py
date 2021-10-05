@@ -176,6 +176,7 @@ def get_features(image, x, y, feature_width):
 
     grad_o = np.add(np.arctan2(gx, gy), np.pi)
 
+
     for i in range(0, len(x)):
         des = np.array([])
         if (x[i] + 8 < image.shape[1]) and (y[i] + 8 < image.shape[0]):
@@ -204,9 +205,9 @@ def get_features(image, x, y, feature_width):
                                 histogram[7] += mag_help 
 
                     des = np.append(des, histogram) 
-
+                    #print(des)
             features[i, :] = np.expand_dims(des / np.linalg.norm(des), axis = 0)
-
+    #print(features)
     return features
 
 
@@ -259,21 +260,22 @@ def match_features(im1_features, im2_features):
     f1_sum = np.sum(np.square(im1_features), axis=1, keepdims=True)
     f2_sum = np.sum(np.square(im2_features), axis=1, keepdims=True)
 
+    f1_sum_2 = f1_sum.reshape((im1_features.shape[0], 1))
+
     f2_sum = np.matrix.transpose(f2_sum)
 
-    A = np.add(f1_sum, f2_sum)
+    A = np.add(f1_sum_2, f2_sum)
     
     e_dist = np.sqrt(np.subtract(A, B))
 
-    dist_sort = np.sort(e_dist, axis=1)
-    d_sort_i = np.argsort(e_dist, axis = 1)
+    dist_sort = np.sort(e_dist)
+    d_sort_i = np.argsort(e_dist)
 
     near_n = dist_sort[:, 0]
     near_n_2 = dist_sort[:, 1]
+    confidences = np.ones(confidences.shape) - (near_n/near_n_2)
 
-    confidences = 1 - (near_n/near_n_2)
-
-    for i in range(len(im1_features)):
+    for i in range(len(near_n)):
         matches[i][0] = i
         matches[i][1] = d_sort_i[i][0]
 

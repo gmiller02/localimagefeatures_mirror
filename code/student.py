@@ -255,28 +255,34 @@ def match_features(im1_features, im2_features):
     matches = np.zeros((len(im1_features),2))
     confidences = np.zeros(len(im1_features))
 
-    B = 2 * (np.dot(im1_features, np.matrix.transpose(im2_features)))
+    B = 2 * (np.dot(im1_features, np.transpose(im2_features)))
 
     f1_sum = np.sum(np.square(im1_features), axis=1, keepdims=True)
     f2_sum = np.sum(np.square(im2_features), axis=1, keepdims=True)
 
-    f1_sum_2 = f1_sum.reshape((im1_features.shape[0], 1))
+    #f1_sum_2 = f1_sum.reshape((im1_features.shape[0], 1))
 
-    f2_sum = np.matrix.transpose(f2_sum)
+    f2_sum = np.transpose(f2_sum)
 
-    A = np.add(f1_sum_2, f2_sum)
+    A = np.add(f1_sum, f2_sum)
     
     e_dist = np.sqrt(np.subtract(A, B))
 
     dist_sort = np.sort(e_dist)
+
     d_sort_i = np.argsort(e_dist)
+    
 
-    near_n = dist_sort[:, 0]
-    near_n_2 = dist_sort[:, 1]
-    confidences = near_n_2/near_n
+    for i in range(len(im1_features)):
 
-    for i in range(len(near_n)):
-        matches[i][0] = i
-        matches[i][1] = d_sort_i[i][0]
+        near_n = e_dist[i][d_sort_i[i][0]]
+        near_n_2 = e_dist[i][d_sort_i[i][1]]
+
+        if near_n_2 != 0:
+            ratio = 1 - near_n/near_n_2
+            confidences[i] = ratio
+            matches[i][0] = i
+            matches[i][1] = d_sort_i[i][0]
+
 
     return matches, confidences

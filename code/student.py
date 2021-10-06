@@ -268,7 +268,7 @@ def match_features(im1_features, im2_features):
     
     e_dist = np.sqrt(np.subtract(A, B))
 
-    dist_sort = np.sort(e_dist)
+    #dist_sort = np.sort(e_dist)
 
     d_sort_i = np.argsort(e_dist)
     
